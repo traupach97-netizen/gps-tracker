@@ -26,6 +26,20 @@
         h1 {
             text-align: center;
         }
+
+        #downloadButton {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        #downloadButton:active {
+            background-color: #1976D2;
+        }
     </style>
 </head>
 
@@ -35,82 +49,141 @@
 
     <div id="map"></div>
 
+    <!-- Button zum Herunterladen -->
+    <button id="downloadButton">
+        Strecke als CSV speichern
+    </button>
+
+
     <!-- Leaflet JavaScript -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    ```html
-<script>
+    <script>
 
-    // Karte erstellen
-    const map = L.map("map");
+        // Karte erstellen
+        const map = L.map("map");
 
-    // Kartenanbieter
-    L.tileLayer("https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap France"
-    }).addTo(map);
-
-
-    // Alle GPS-Punkte werden hier gespeichert
-    const route = [];
-
-    // Blaue Linie
-    const line = L.polyline(route, {
-        color: "blue",
-        weight: 5
-    }).addTo(map);
+        // Kartenanbieter
+        L.tileLayer("https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", {
+            attribution: "&copy; OpenStreetMap France"
+        }).addTo(map);
 
 
-    // Marker für die aktuelle Position
-    let marker = null;
+        // GPS-Punkte für die Linie
+        const route = [];
+
+        // GPS-Daten für die CSV
+        const gpsData = [];
 
 
-    // GPS starten
-    navigator.geolocation.watchPosition(
-
-        function(position) {
-
-            // GPS-Koordinaten
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-
-            // Neue Position speichern
-            route.push([latitude, longitude]);
-
-            // Linie aktualisieren
-            line.setLatLngs(route);
+        // Blaue Linie erstellen
+        const line = L.polyline(route, {
+            color: "blue",
+            weight: 5
+        }).addTo(map);
 
 
-            // Wenn es noch keinen Marker gibt
-            if (marker === null) {
+        // Marker für aktuelle Position
+        let marker = null;
 
-                // Marker erstellen
-                marker = L.marker([latitude, longitude])
-                    .addTo(map)
-                    .bindPopup("Du bist hier!");
 
-            } else {
+        // GPS starten
+        navigator.geolocation.watchPosition(
 
-                // Bestehenden Marker bewegen
-                marker.setLatLng([latitude, longitude]);
+            function(position) {
+
+                // GPS-Koordinaten
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+
+                // Zeit speichern
+                const timestamp = new Date().toISOString();
+
+
+                // Punkt für die Karte speichern
+                route.push([latitude, longitude]);
+
+                // Linie aktualisieren
+                line.setLatLngs(route);
+
+
+                // Daten für CSV speichern
+                gpsData.push({
+                    timestamp: timestamp,
+                    longitude: longitude,
+                    latitude: latitude
+                });
+
+
+                // Marker erstellen oder verschieben
+                if (marker === null) {
+
+                    marker = L.marker([latitude, longitude])
+                        .addTo(map)
+                        .bindPopup("Du bist hier!");
+
+                } else {
+
+                    marker.setLatLng([latitude, longitude]);
+
+                }
+
+
+                // Karte auf aktuelle Position bewegen
+                map.setView([latitude, longitude], 16);
+
+            },
+
+
+            function(error) {
+
+                alert("GPS Fehler: " + error.message);
+
             }
 
-
-            // Karte auf aktuelle Position bewegen
-            map.setView([latitude, longitude], 16);
-        },
+        );
 
 
-        function(error) {
+        // CSV herunterladen
+        document.getElementById("downloadButton").addEventListener("click", function() {
 
-            alert("GPS konnte nicht abgerufen werden.");
+            // CSV-Kopfzeile
+            let csv = "timestamp,longitude,latitude\n";
 
-        }
 
-    );
+            // Jeden GPS-Punkt hinzufügen
+            gpsData.forEach(function(point) {
 
-</script>
-```
+                csv += point.timestamp + ","
+                    + point.longitude + ","
+                    + point.latitude + "\n";
 
+            });
+
+
+            // CSV-Datei erstellen
+            const blob = new Blob([csv], {
+                type: "text/csv;charset=utf-8;"
+            });
+
+
+            // Download-Link erstellen
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+
+            link.href = url;
+            link.download = "gps-strecke.csv";
+
+            link.click();
+
+
+            // Speicher wieder freigeben
+            URL.revokeObjectURL(url);
+
+        });
+
+    </script>
 
 </body>
 </html>
